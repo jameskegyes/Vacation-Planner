@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Family Trip Dashboard</title>
+<style>
+:root{--bg:#f4f7fa;--card:#fff;--ink:#16263a;--mute:#5d6f84;--line:#dbe4ee;--acc:#1f6fd1;--acc2:#e8f1fc;--ok:#1d8a5a;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1a28;--card:#172538;--ink:#e8eef6;--mute:#93a5ba;--line:#2a3b52;--acc:#5aa2f5;--acc2:#1c3350;--ok:#4cc38a}}
+:root[data-theme="dark"]{--bg:#0f1a28;--card:#172538;--ink:#e8eef6;--mute:#93a5ba;--line:#2a3b52;--acc:#5aa2f5;--acc2:#1c3350;--ok:#4cc38a}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1000px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:end;justify-content:space-between;margin-bottom:14px}
+h1{font:700 24px/1.1 Georgia,serif;margin:0}h2{font-size:16px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select,button{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+input{min-width:0}button{cursor:pointer;background:var(--acc);color:#fff;border-color:var(--acc)}
+button.ghost{background:transparent;color:var(--acc)}
+.days{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.day{background:var(--acc2);border-radius:10px;padding:10px;text-align:center}
+.day b{display:block}.day .t{font-size:20px;font-weight:700}.day small{color:var(--mute)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.stat{background:var(--acc2);border-radius:10px;padding:10px}.stat .n{font-size:22px;font-weight:700}.stat small{color:var(--mute)}
+.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{border:1px solid var(--line);padding:4px;vertical-align:top}th{background:var(--acc2);font-size:13px}
+td input{width:100%;border:0;padding:4px;background:transparent}td select{width:100%;border:0;font-size:12px;color:var(--mute);padding:2px}
+.note{color:var(--mute);font-size:13px;margin:8px 0 0}.pill{font-size:12px;color:var(--ok)}
+ul{list-style:none;margin:8px 0 0;padding:0}li{display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line)}
+li.done span{text-decoration:line-through;color:var(--mute)}li span{flex:1}
+a{color:var(--acc)}
+.chip{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:13px}
+.chip.off{opacity:.45}.rc{margin-top:10px}.rc h3{margin:0 0 6px;font-size:14px}
+.dtab{background:var(--card);color:var(--ink);border-color:var(--line);font-size:13px}.dtab.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.fx{font-size:12px;border-radius:6px;padding:1px 6px;background:var(--acc2)}.warn{color:#c4571a;font-size:12px}
+li small{color:var(--mute)}li select{font-size:12px;padding:2px}
+</style></head><body><main>
+<header>
+<div><h1 id="title">Family Trip Dashboard</h1><div class="pill" id="sync">Loading…</div></div>
+<div class="row">
+<input id="dest" placeholder="Destination (e.g. Park City, UT)" aria-label="Destination">
+<input id="start" type="date" aria-label="Start date">
+<select id="nights" aria-label="Nights"></select>
+</div></header>
+
+<section class="card"><div class="row" style="justify-content:space-between"><h2>🌤 Local forecast</h2>
+<div class="row"><button id="refresh">Ask Claude to update weather &amp; snow</button><a id="nws" target="_blank" rel="noopener">Official forecast ↗</a></div></div>
+<div class="days" id="wx"></div>
+<p class="note" id="wxnote">No forecast yet. Set your destination, then tap update. Claude's numbers are an estimate, so double-check official sources before driving or skiing.</p></section>
+
+<section class="card"><h2>❄️ Snow report</h2><div class="row" id="rs"></div><p class="note" id="rsnote">Update the forecast to find ski resorts near your destination. The 3 nearest are selected by default; you can choose up to 3.</p>
+<div id="snow"></div>
+<p class="note"><a id="snowlink" target="_blank" rel="noopener">Live resort conditions ↗</a></p></section>
+
+<section class="card"><h2>🍽 Meal plan — who's cooking?</h2>
+<div class="scroll"><table id="meals"></table></div>
+<div class="row" style="margin-top:10px"><label for="mem" class="note" style="margin:0">Cook names (comma-separated):</label><input id="mem" style="flex:1;min-width:200px"><button id="msave">Save names</button></div>
+<p class="note">Edits sync for everyone with the link (when signed in). Pick a cook, type the dish.</p></section>
+
+<section class="card"><h2>🗓 Daily activities</h2>
+<div class="row" id="adays"></div>
+<div class="row" style="margin-top:10px"><input id="an" placeholder="Activity" style="flex:2;min-width:140px"><input id="at" type="time" value="09:00" aria-label="Start time"><input id="ad" type="number" min="15" step="15" value="120" style="width:80px" aria-label="Minutes"><select id="af" aria-label="Flexibility"><option value="1">Flex 1 – fixed</option><option value="2">Flex 2</option><option value="3" selected>Flex 3</option><option value="4">Flex 4</option><option value="5">Flex 5 – easy to skip</option></select><button id="aadd">Add</button></div>
+<ul id="al"></ul><p class="note">Duration is in minutes. Flexibility: 1 = fixed (reservations, lift tickets), 5 = easy to move or skip.</p></section>
+
+<section class="card"><h2>🛒 Grocery list</h2>
+<div class="row"><input id="gin" placeholder="Add an item" style="flex:1"><button id="gadd">Add</button></div><ul id="gl"></ul></section>
+</main>
+<script>
+const MEALS=[["b","Breakfast"],["l","Lunch"],["d","Dinner"]];
+let S={dest:"",start:"",nights:5,wx:[],snow:null,meals:{},groc:[],members:["Mom","Dad","Kid 1","Kid 2","Everyone","Eat out"],resorts:[],sel:[],selTouched:false,acts:{},aday:0};
+let ref=null,db=null,saveT=null,applying=false;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+for(let i=1;i<=14;i++){const o=document.createElement("option");o.value=i;o.textContent=i+" nights";$("nights").appendChild(o)}
+
+function dayLabels(){const n=+S.nights+1,out=[];const base=S.start?new Date(S.start+"T12:00:00"):null;
+ for(let i=0;i<n;i++){out.push(base?new Date(base.getTime()+i*864e5).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}):"Day "+(i+1))}return out}
+
+function render(){
+ applying=true;
+ $("dest").value=S.dest;$("start").value=S.start;$("nights").value=S.nights;
+ $("title").textContent=S.dest?S.dest+" Trip":"Family Trip Dashboard";
+ const q=encodeURIComponent(S.dest||"");
+ $("nws").href="https://forecast.weather.gov/zipcity.php?inputstring="+q;
+ $("snowlink").href="https://www.google.com/search?q="+encodeURIComponent((S.dest||"ski resort")+" snow report");
+ $("wx").innerHTML=(S.wx||[]).map(d=>`<div class="day"><b>${esc(d.d)}</b><div>${esc(d.c)}</div><div class="t">${esc(d.hi)}°</div><small>Low ${esc(d.lo)}° · ${esc(d.p)}% precip</small></div>`).join("");
+ if(!S.selTouched)S.sel=S.resorts.slice(0,3).map(r=>r.n);
+ S.sel=S.sel.filter(n=>S.resorts.some(r=>r.n===n));
+ $("rs").innerHTML=S.resorts.map((r,i)=>{const on=S.sel.includes(r.n);return `<label class="chip${!on&&S.sel.length>=3?" off":""}"><input type="checkbox" data-r="${i}" ${on?"checked":""} ${!on&&S.sel.length>=3?"disabled":""}>${esc(r.n)} · ${esc(r.mi)} mi${r.min?" · ~"+esc(r.min)+" min":""}</label>`}).join("");
+ $("snow").innerHTML=S.resorts.filter(r=>S.sel.includes(r.n)).map(r=>{const s=r.snow;
+  return `<div class="rc"><h3>${esc(r.n)}</h3>`+(s?`<div class="stats">`+[["Base",s.base+'"'],["24 hr",s.h24+'"'],["7 day",s.d7+'"'],["Lifts open",s.open],["Surface",s.surf]].map(([k,v])=>`<div class="stat"><div class="n">${esc(v)}</div><small>${k}</small></div>`).join("")+`</div>`+(s.note?`<p class="note">${esc(s.note)}</p>`:""):'<p class="note">No snow data yet.</p>')+`</div>`}).join("");
+ const L=dayLabels();
+ let h="<tr><th></th>"+L.map(l=>`<th>${esc(l)}</th>`).join("")+"</tr>";
+ for(const [k,name] of MEALS){h+=`<tr><th>${name}</th>`;
+  L.forEach((_,i)=>{const m=S.meals[i+"-"+k]||{};
+   h+=`<td><input data-k="${i}-${k}" value="${esc(m.dish)}" placeholder="Dish"><select data-c="${i}-${k}"><option value="">Cook?</option>${[...S.members,...(m.cook&&!S.members.includes(m.cook)?[m.cook]:[])].map(x=>`<option${m.cook===x?" selected":""}>${esc(x)}</option>`).join("")}</select></td>`});
+  h+="</tr>"}
+ $("meals").innerHTML=h;$("mem").value=S.members.join(", ");
+ if(S.aday>=L.length)S.aday=0;
+ $("adays").innerHTML=L.map((l,i)=>`<button class="dtab${i===S.aday?" on":""}" data-ad="${i}">${esc(l)}</button>`).join("");
+ const hm=m=>{m=((m%1440)+1440)%1440;const h=Math.floor(m/60),mm=String(m%60).padStart(2,"0");return (h%12||12)+":"+mm+(h<12?" AM":" PM")};
+ const tm=t=>{const[x,y]=t.split(":").map(Number);return x*60+y};
+ const list=(S.acts[S.aday]||[]).map((a,i)=>({...a,i})).sort((x,y)=>tm(x.t)-tm(y.t));
+ let prevEnd=-1;
+ $("al").innerHTML=list.map(a=>{const st=tm(a.t),en=st+a.dur,ov=st<prevEnd;prevEnd=Math.max(prevEnd,en);
+  return `<li><span><b>${esc(a.name)}</b><br><small>${hm(st)} – ${hm(en)} (${Math.floor(a.dur/60)?Math.floor(a.dur/60)+"h ":""}${a.dur%60?a.dur%60+"m":""})</small>${ov?' <span class="warn">⚠ overlaps previous</span>':""}</span><select data-af="${a.i}" aria-label="Flexibility">${[1,2,3,4,5].map(n=>`<option value="${n}"${a.flex===n?" selected":""}>Flex ${n}</option>`).join("")}</select><button class="ghost" data-ax="${a.i}" aria-label="Remove">✕</button></li>`}).join("")||'<li><small>Nothing planned for this day yet.</small></li>';
+ $("gl").innerHTML=S.groc.map((g,i)=>`<li class="${g.done?"done":""}"><input type="checkbox" data-g="${i}" ${g.done?"checked":""}><span>${esc(g.t)}</span><button class="ghost" data-x="${i}" aria-label="Remove">✕</button></li>`).join("");
+ applying=false;
+}
+
+function save(){
+ try{localStorage.setItem("trip",JSON.stringify(S))}catch(e){}
+ if(!ref)return;clearTimeout(saveT);
+ saveT=setTimeout(async()=>{try{await ref.set({json:JSON.stringify(S)});$("sync").textContent="Synced ✓"}catch(e){$("sync").textContent="Sync failed — saved on this device"}},600);
+}
+
+$("dest").onchange=e=>{S.dest=e.target.value.trim();render();save()};
+$("start").onchange=e=>{S.start=e.target.value;render();save()};
+$("nights").onchange=e=>{S.nights=+e.target.value;render();save()};
+$("meals").addEventListener("change",e=>{const t=e.target;const k=t.dataset.k||t.dataset.c;if(!k)return;
+ const m=S.meals[k]=S.meals[k]||{};if(t.dataset.k)m.dish=t.value;else m.cook=t.value;save()});
+$("rs").addEventListener("change",e=>{const i=e.target.dataset.r;if(i===undefined)return;const n=S.resorts[+i].n;
+ S.selTouched=true;S.sel=e.target.checked?[...S.sel,n].slice(0,3):S.sel.filter(x=>x!==n);render();save()});
+$("adays").addEventListener("click",e=>{const d=e.target.dataset.ad;if(d===undefined)return;S.aday=+d;render();save()});
+$("aadd").onclick=()=>{const n=$("an").value.trim();if(!n||!$("at").value)return;
+ (S.acts[S.aday]=S.acts[S.aday]||[]).push({name:n,t:$("at").value,dur:Math.max(15,+$("ad").value||60),flex:+$("af").value});$("an").value="";render();save()};
+$("an").onkeydown=e=>{if(e.key==="Enter")$("aadd").click()};
+$("al").addEventListener("change",e=>{const i=e.target.dataset.af;if(i===undefined)return;S.acts[S.aday][+i].flex=+e.target.value;render();save()});
+$("al").addEventListener("click",e=>{const i=e.target.dataset.ax;if(i===undefined)return;S.acts[S.aday].splice(+i,1);render();save()});
+$("msave").onclick=()=>{const m=$("mem").value.split(",").map(x=>x.trim()).filter(Boolean);if(m.length){S.members=[...new Set(m)];render();save()}};
+$("gadd").onclick=()=>{const v=$("gin").value.trim();if(!v)return;S.groc.push({t:v,done:false});$("gin").value="";render();save()};
+$("gin").onkeydown=e=>{if(e.key==="Enter")$("gadd").click()};
+$("gl").addEventListener("click",e=>{const t=e.target;
+ if(t.dataset.g!==undefined){S.groc[+t.dataset.g].done=t.checked;render();save()}
+ if(t.dataset.x!==undefined){S.groc.splice(+t.dataset.x,1);render();save()}});
+
+$("refresh").onclick=async()=>{
+ if(!S.dest){$("wxnote").textContent="Enter a destination first.";return}
+ const sample=await claude.use("sample").catch(()=>null);
+ if(!sample){$("wxnote").textContent="Claude updates aren't available in this view. Use the official links instead.";return}
+ $("refresh").disabled=true;$("wxnote").textContent="Asking Claude…";
+ try{
+  const r=await sample.json(`Estimate a typical forecast for ${S.dest} starting ${S.start||"today"} for ${+S.nights+1} days. Also list up to 6 ski resorts nearest to ${S.dest}, nearest first, with approximate driving distance in miles and minutes, and typical snow conditions for the trip dates (zeros and surf "n/a" if out of season). Return ONLY JSON: {"wx":[{"d":"Mon","c":"Snow","hi":28,"lo":15,"p":60}],"resorts":[{"n":"Resort","mi":20,"min":35,"snow":{"base":40,"h24":3,"d7":10,"open":"8/10","surf":"Packed powder","note":"short note"}}]}. Temperatures in °F.`,{cache:false});
+  if(r.wx)S.wx=r.wx.slice(0,7);
+  if(r.resorts)S.resorts=r.resorts.slice(0,6).sort((x,y)=>x.mi-y.mi);
+  $("wxnote").textContent="Updated "+new Date().toLocaleString()+" — Claude's estimates, not official reports. Verify before travel.";
+  render();save();
+ }catch(e){$("wxnote").textContent="Couldn't update ("+(e.code||"error")+"). Try again later."}
+ $("refresh").disabled=false;
+};
+
+function load(raw){try{const o=JSON.parse(raw);S={...S,...o}}catch(e){}}
+try{const l=localStorage.getItem("trip");if(l)load(l)}catch(e){}
+render();$("sync").textContent="Saved on this device only";
+(async()=>{try{
+ db=await claude.use("db");if(!db)return;
+ ref=db.doc("trip/main");
+ ref.onSnapshot(snap=>{if(snap.metadata.hasPendingWrites)return;
+  if(snap.exists){const j=snap.data().json;if(j&&j!==JSON.stringify(S)){const a=document.activeElement;if(a&&a.tagName==="INPUT"&&a.id!=="")return;load(j);render()}}
+  $("sync").textContent="Synced ✓"},()=>{$("sync").textContent="Saved on this device only"});
+}catch(e){}})();
+</script></body></html>
